@@ -62,11 +62,15 @@ def hay_archivo(ruta: str) -> bool:
 
 ## Arquitectura
 
-Cuatro módulos en `src/`, importados por nombre plano (`import gestor`; no es paquete). `tests/conftest.py` mete `src/` en `sys.path`.
+Cuatro módulos en `src/`, importados por nombre plano (`import gestor`; no es paquete). `tests/conftest.py` y `tests_adicionales/conftest.py` meten `src/` en `sys.path`.
 
-- `gestor.py`: lógica de negocio y **dueño del estado global**: `INVENTARIO` (dict código→producto), `VENTAS` (lista), `contadorVentas` (folio) y `ultimo_error` (canal de errores: las funciones devuelven `False`/`None` y dejan el motivo ahí). `reiniciar_sistema()` lo resetea (el fixture autouse de conftest lo llama antes/después de cada test). `registrar_venta` es una función gigante (validación, descuento por volumen, extra VIP, IVA 16 %, stock, folio, ticket) y `cotizar` duplica su cálculo de descuento/IVA.
-- `almacen.py`: persistencia JSON; **muta directamente** `gestor.INVENTARIO/VENTAS/contadorVentas/ultimo_error` (acopla ambos módulos). Los `.clear()` + copia mantienen las mismas referencias de dict/lista, así que cualquier refactor debe conservar la identidad de esos objetos (los demás módulos acceden a ellos como `gestor.INVENTARIO`).
-- `reportes.py`: lee el estado de `gestor`; `reporte_inventario` y `resumen_ventas` **imprimen y devuelven** el texto. Umbral de stock bajo (5) hardcodeado en dos lugares.
-- `main.py`: menú interactivo con un `if/elif` largo; mezcla E/S con llamadas a la lógica.
+- `gestor.py`: lógica de negocio y **dueño del estado global**: `INVENTARIO` (dict código→producto), `VENTAS` (lista), `contador_ventas` (folio) y `ultimo_error` (canal de errores: las funciones devuelven `False`/`None` y dejan el motivo ahí; las que lo asignan deben declararlo con `global`). `reiniciar_sistema()` lo resetea (el fixture autouse de conftest lo llama antes/después de cada test). Las reglas de negocio son constantes al inicio del módulo (`TASA_IVA`, umbrales y porcentajes de descuento por volumen, `PREFIJO_CLIENTE_VIP`, `MONTO_MINIMO_VIP`, `DESCUENTO_EXTRA_VIP`).
+  - `registrar_venta` ya no es una función gigante: es un flujo corto que orquesta funciones pequeñas: `validar_venta` (guardas en orden: código vacío, producto inexistente, cantidad inválida, stock insuficiente), `calcular_descuento_volumen`, `calcular_descuento_vip`, `calcular_impuesto`, `calcular_total_con_iva` (único punto de redondeo del total) y `armar_ticket`.
+  - `cotizar` reutiliza `calcular_descuento_volumen` y `calcular_total_con_iva`, pero **no aplica el descuento VIP** (comportamiento fijado por `tests_adicionales/`) y valida distinto a `registrar_venta` (por ejemplo, un código vacío da "producto no existe").
+- `almacen.py`: persistencia JSON (`guardar_datos`, `cargar_datos`, `hay_archivo`); **muta directamente** `gestor.INVENTARIO/VENTAS/contador_ventas/ultimo_error` (acopla ambos módulos). Los `.clear()` + copia mantienen las mismas referencias de dict/lista, así que cualquier refactor debe conservar la identidad de esos objetos (los demás módulos acceden a ellos como `gestor.INVENTARIO`). La clave `"contador"` del JSON es el formato del archivo de datos y no se renombra junto con la variable.
+- `reportes.py`: lee el estado de `gestor`; `reporte_inventario` y `resumen_ventas` **imprimen y devuelven** el texto. El umbral de stock bajo es la constante `UMBRAL_STOCK_BAJO`.
+- `main.py`: menú interactivo con un `if/elif` largo; mezcla E/S con llamadas a la lógica. No tiene tests: verificar cambios aquí a mano.
 
-Código muerto conocido: `calcular_descuento_viejo`, `reporteViejoCSV`, bloque comentado `exportar_txt` (verificar con grep que no los use ningún test antes de borrar).
+El código muerto original (`calcular_descuento_viejo`, `reporteViejoCSV`, `exportar_txt` comentado, `MODO_DEBUG`) ya se eliminó; no lo reintroduzcas.
+
+Como el ticket de `registrar_venta` no tiene tests, `docs/evidencia/snapshot_ticket.py` sirve para verificar que no cambia: genera el ticket (y el dict de la venta) de 3 ventas de ejemplo (`python docs/evidencia/snapshot_ticket.py <archivo>`); compárese con `docs/evidencia/06_ticket_despues.txt` usando `diff`.
