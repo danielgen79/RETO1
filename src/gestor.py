@@ -94,6 +94,25 @@ def buscarProducto(texto):
     return temp2
 
 
+def calcular_descuento_volumen(subtotal: float) -> float:
+    """Descuento por volumen de compra segun el subtotal."""
+    if subtotal >= UMBRAL_DESCUENTO_ALTO:
+        return subtotal * DESCUENTO_ALTO
+    if subtotal >= UMBRAL_DESCUENTO_MEDIO:
+        return subtotal * DESCUENTO_MEDIO
+    return 0
+
+
+def calcular_impuesto(base: float) -> float:
+    """IVA que se cobra sobre la base (subtotal ya con descuento)."""
+    return base * TASA_IVA
+
+
+def calcular_total_con_iva(base: float) -> float:
+    """Total redondeado a 2 decimales: la base mas su IVA."""
+    return round(base + calcular_impuesto(base), 2)
+
+
 def registrar_venta(codigo, cantidad, cliente=""):
     """Registra una venta completa.
 
@@ -124,14 +143,7 @@ def registrar_venta(codigo, cantidad, cliente=""):
     # calculo del subtotal
     aux = temp2["precio"] * cantidad
     # descuentos por volumen de compra
-    desc = 0
-    if aux >= UMBRAL_DESCUENTO_ALTO:
-        desc = aux * DESCUENTO_ALTO
-    else:
-        if aux >= UMBRAL_DESCUENTO_MEDIO:
-            desc = aux * DESCUENTO_MEDIO
-        else:
-            desc = 0
+    desc = calcular_descuento_volumen(aux)
     # los clientes cuyo codigo empieza con VIP tienen un extra,
     # pero solo si su compra (ya con descuento) pasa de cierto monto
     if cliente != "" and cliente is not None:
@@ -140,8 +152,8 @@ def registrar_venta(codigo, cantidad, cliente=""):
                 if aux - desc > MONTO_MINIMO_VIP:
                     desc = desc + aux * DESCUENTO_EXTRA_VIP
     base = aux - desc
-    impuesto = base * TASA_IVA
-    total = round(base + impuesto, 2)
+    impuesto = calcular_impuesto(base)
+    total = calcular_total_con_iva(base)
     # descontar del inventario
     temp2["stock"] = temp2["stock"] - cantidad
     contadorVentas = contadorVentas + 1
@@ -182,12 +194,6 @@ def cotizar(codigo, cantidad):
         ultimo_error = "cantidad invalida"
         return None
     aux = INVENTARIO[codigo]["precio"] * cantidad
-    desc = 0
-    if aux >= UMBRAL_DESCUENTO_ALTO:
-        desc = aux * DESCUENTO_ALTO
-    else:
-        if aux >= UMBRAL_DESCUENTO_MEDIO:
-            desc = aux * DESCUENTO_MEDIO
+    desc = calcular_descuento_volumen(aux)
     base = aux - desc
-    total = base + base * TASA_IVA
-    return round(total, 2)
+    return calcular_total_con_iva(base)
