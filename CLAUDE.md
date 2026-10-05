@@ -12,17 +12,18 @@ Usar el venv del repo (`.venv`). **Ejecutar todo como módulo de Python** (`pyth
 
 ```bash
 python -m pip install -r requirements.txt            # dependencias (pytest, ruff)
-python -m pytest -v                                  # suite completa (testpaths = tests)
+python -m pytest -v tests tests_adicionales          # suite completa (tests originales + adicionales)
 python -m pytest -v tests/test_gestor.py::nombre     # una sola prueba
 python -m ruff check src                             # linter; el objetivo final es 0 errores
 cd src && python main.py                             # app interactiva (lee/escribe datos_ejemplo.json en el cwd)
 ```
 
-Ejecutar `python -m pytest -v` **y** `python -m ruff check src` después de CADA refactorización.
+Ejecutar `python -m pytest -v tests tests_adicionales` **y** `python -m ruff check src` después de CADA refactorización.
 
 ## Reglas inamovibles
 
 - **No modificar `tests/` ni `pyproject.toml`** (ni relajar reglas de ruff para "pasar" el linter). Los tests son de caja negra: si fallan, el refactor cambió el comportamiento.
+- `tests/` no se modifica, pero `tests_adicionales/` sí se puede ampliar: contiene pruebas de caracterización de casos límite (umbrales de descuento, límite VIP, textos de `ultimo_error`) y su propio `conftest.py`. Si una de ellas falla tras un refactor, el comportamiento cambió: no ajustar el test para que pase.
 - El comportamiento observable debe quedar idéntico: textos de tickets/reportes/mensajes, redondeos, valores de `ultimo_error`, valores de retorno (`None`/`False`/`True`).
 - `agregarProducto` y `buscarProducto` conservan su nombre (los usan los tests); `pyproject.toml` las exime de `pep8-naming`. El resto sí debe ser snake_case.
 - Ruff selecciona E, W, F, I, N, B, SIM, UP, C90 (mccabe `max-complexity = 10`, línea de 88 cols); cada regla corresponde a un smell real del proyecto.
@@ -31,7 +32,7 @@ Ejecutar `python -m pytest -v` **y** `python -m ruff check src` después de CADA
 
 - Una sola refactorización por petición; no adelantes otras aunque las veas.
 - Antes de renombrar o borrar cualquier función o variable, busca con grep si se usa en `tests/` o en otros módulos.
-- Al terminar, ejecuta `python -m pytest -v` y `python -m ruff check src` y muestra el resumen.
+- Al terminar, ejecuta `python -m pytest -v tests tests_adicionales` y `python -m ruff check src` y muestra el resumen.
 - No hagas commit: el usuario revisa el diff y lo hace él.
 - Si un test falla, revierte el cambio y explica la causa en vez de forzar una solución.
 

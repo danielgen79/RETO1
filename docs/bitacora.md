@@ -25,6 +25,68 @@ Estado inicial: 20 pruebas pasando y 20 errores de ruff (evidencia en
 | `.claudeignore` | "No, créalo así: excluye .venv/, venv/, \_\_pycache\_\_/, \*.pyc, .pytest_cache/, .ruff_cache/, .mypy_cache/, .git/, \*.egg-info/, .coverage, htmlcov/, .DS_Store, \_\_MACOSX/ y .env. Agrega un comentario breve por grupo explicando por qué se excluye. No excluyas datos_ejemplo.json (lo usa la app y sirve para entender la estructura de los datos) ni docs/evidencia (es evidencia del reto)." | Se creó `.claudeignore` con los grupos y comentarios pedidos. | Commit `cdc76dc`. La propuesta inicial de Claude incluía excluir los datos generados por la app; con una lista explícita (conservando `datos_ejemplo.json` y `docs/evidencia`) el resultado fue el correcto. |
 | Diagnóstico (modo plan) | "Analiza todo el código de src/ y haz un diagnóstico de code smells. Para cada uno indica: archivo y función, tipo de smell (función larga, nombre poco claro, duplicación, condicional complejo, falta de type hints, manejo de errores débil, código muerto, número mágico, acoplamiento por estado global), severidad (alta/media/baja) y qué regla de ruff lo detecta, si aplica. Después propón un orden de refactorizaciones de la más segura a la más riesgosa, indicando para cada una qué tests la protegen. Considera las restricciones de CLAUDE.md. No modifiques nada." | Diagnóstico por módulo (`gestor.py`, `almacen.py`, `reportes.py`, `main.py`) y plan de 9 refactorizaciones ordenadas de menor a mayor riesgo. Guardado en `docs/diagnostico.md`. | Señaló que la suite no cubre los textos de `ultimo_error`, el ticket, `resumen_ventas` ni `main.py`, así que "pytest en verde" no basta para esas partes. |
 
+## Tests adicionales
+
+### Prompt usado
+
+> La rúbrica del curso, en el nivel Sobresaliente del criterio de tests, dice textualmente: "Se agregaron tests adicionales para cubrir casos edge". Para no tocar tests/ en absoluto, crea una carpeta nueva tests_adicionales/ con:
+>
+> 1. Su propio conftest.py que haga lo mismo que tests/conftest.py (agregar src/ al sys.path y reiniciar el estado con el fixture autouse). No modifiques tests/conftest.py.
+> 2. test_casos_limite.py con tests de caracterización que fijen el comportamiento ACTUAL:
+>    - Límites exactos de descuento por volumen: justo debajo y justo en 500 y en 1000.
+>    - Límite VIP: compra con descuento justo en 200 (no aplica extra) y justo arriba (sí aplica).
+>    - Que cotizar NO aplica el descuento VIP aunque el cliente lo sea.
+>    - Los textos exactos de ultimo_error en cada rechazo de registrar_venta, respetando el orden de validación (código vacío, producto inexistente, cantidad inválida, stock insuficiente).
+>
+> Los tests deben pasar con el código actual sin modificar nada en src/. Si alguno falla, no cambies src/: ajusta el test al comportamiento real y avísame.
+>
+> Después actualiza CLAUDE.md: el comando de tests pasa a ser `python -m pytest -v tests tests_adicionales`, y agrega en "Reglas inamovibles" que tests/ no se modifica, pero tests_adicionales/ sí se puede ampliar. Al terminar ejecuta el comando nuevo y muéstrame el resultado.
+
+### Por qué una carpeta aparte
+
+La rúbrica premia agregar tests de casos límite, pero el README prohíbe modificar
+`tests/` ("No modifiques los archivos de `tests/` ni `pyproject.toml`") y no aclara si
+se pueden agregar archivos nuevos ahí. Para cumplir ambas cosas sin interpretar la regla,
+los tests nuevos viven en `tests_adicionales/`, con su propio `conftest.py` que replica el
+de `tests/` (agrega `src/` al `sys.path` y reinicia el estado con un fixture autouse).
+`tests/` quedó intacto.
+
+### Qué cubren
+
+`tests_adicionales/test_casos_limite.py` contiene 22 pruebas de caracterización: fijan el
+comportamiento actual para detectar cambios accidentales al refactorizar, no afirman que
+ese comportamiento sea el ideal.
+
+- **Descuento por volumen:** subtotal de 499, 500, 999 y 1000 (precio de $1.00), con descuento y total esperados; `cotizar` coincide con la venta en esos cuatro puntos.
+- **Límite VIP:** subtotal de 200 no recibe el extra y 201 sí (descuento de 4.02); un cliente no VIP con 201 no lo recibe. "Justo en 200" se probó con subtotal 200 sin descuento por volumen, porque con descuento por volumen (500 o más) la compra queda muy por encima de 200.
+- **`cotizar` y VIP:** `cotizar` no tiene parámetro de cliente; el test comprueba que su resultado equivale al de una venta sin cliente (233.16) y difiere del de una venta VIP (228.5).
+- **Errores de `registrar_venta`:** textos exactos de `ultimo_error` (`codigo vacio`, `producto no existe`, `cantidad invalida`, `stock insuficiente`) y tres pruebas del orden de validación (código antes que producto y cantidad; producto antes que cantidad; cantidad antes que stock).
+
+Los 22 tests pasaron a la primera con el código actual, sin ajustar ningún valor esperado
+y sin tocar `src/`.
+
+### Qué queda sin cubrir
+
+- El formato del ticket de `registrar_venta`.
+- El texto de `resumen_ventas`.
+- `main.py` completo (el menú interactivo).
+
+Para esas partes, `pytest` en verde no demuestra que el comportamiento se conservó; hay que
+compararlo a mano (por ejemplo, ejecutando el menú con entradas fijas antes y después).
+
+### Cambios en `CLAUDE.md`
+
+Se actualizó `CLAUDE.md`: el comando de la suite completa pasa a ser
+`python -m pytest -v tests tests_adicionales` (también en la línea de "después de cada
+refactorización" y en el flujo de trabajo), y en "Reglas inamovibles" se agregó que `tests/`
+no se modifica pero `tests_adicionales/` sí se puede ampliar, sin ajustar sus pruebas para
+que pasen tras un refactor.
+
+### Resultado
+
+`python -m pytest -v tests tests_adicionales`: **42/42 pasan** (20 originales + 22
+adicionales). Ruff sin cambios: 17 errores.
+
 ## Refactorizaciones
 
 | #  | Prompt usado | Cambio realizado | Justificación | Tests OK |
