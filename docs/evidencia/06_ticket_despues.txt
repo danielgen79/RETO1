@@ -1,0 +1,35 @@
+=== 1) sin descuento ===
+'TIENDA LA ESQUINA\n----------------------------\nFolio: 1\nCafe de grano x2\nSubtotal: $20.0\nIVA: $3.2\nTOTAL: $23.2\n'
+TIENDA LA ESQUINA
+----------------------------
+Folio: 1
+Cafe de grano x2
+Subtotal: $20.0
+IVA: $3.2
+TOTAL: $23.2
+dict (sin fecha ni ticket): {'folio': 1, 'codigo': 'A1', 'nombre': 'Cafe de grano', 'cantidad': 2, 'subtotal': 20.0, 'descuento': 0, 'impuesto': 3.2, 'total': 23.2, 'cliente': ''}
+
+=== 2) con descuento por volumen (10%) ===
+'TIENDA LA ESQUINA\n----------------------------\nFolio: 2\nAzucar x20\nSubtotal: $2000.0\nDescuento: -$200.0\nIVA: $288.0\nTOTAL: $2088.0\n'
+TIENDA LA ESQUINA
+----------------------------
+Folio: 2
+Azucar x20
+Subtotal: $2000.0
+Descuento: -$200.0
+IVA: $288.0
+TOTAL: $2088.0
+dict (sin fecha ni ticket): {'folio': 2, 'codigo': 'B2', 'nombre': 'Azucar', 'cantidad': 20, 'subtotal': 2000.0, 'descuento': 200.0, 'impuesto': 288.0, 'total': 2088.0, 'cliente': ''}
+
+=== 3) cliente VIP con descuento por volumen (5% + 2%) ===
+'TIENDA LA ESQUINA\n----------------------------\nFolio: 3\nAzucar x6\nSubtotal: $600.0\nDescuento: -$42.0\nIVA: $89.28\nTOTAL: $647.28\n'
+TIENDA LA ESQUINA
+----------------------------
+Folio: 3
+Azucar x6
+Subtotal: $600.0
+Descuento: -$42.0
+IVA: $89.28
+TOTAL: $647.28
+dict (sin fecha ni ticket): {'folio': 3, 'codigo': 'B2', 'nombre': 'Azucar', 'cantidad': 6, 'subtotal': 600.0, 'descuento': 42.0, 'impuesto': 89.28, 'total': 647.28, 'cliente': 'VIP007'}
+
