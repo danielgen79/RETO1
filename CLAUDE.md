@@ -4,21 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Contexto
 
-Reto de "Refactorización Asistida por IA": app de consola en Python (3.10+) para inventario y ventas de la tienda "La Esquina". El programa **funciona y todas las pruebas pasan**; el código tiene malas prácticas a propósito y la tarea es mejorarlo **sin cambiar su comportamiento observable**. La entrega es un PR (`refactorizacion` → `main`) con commits atómicos (uno por refactorización), una `BITACORA.md` (copiada de `BITACORA_TEMPLATE.md`, una fila por refactorización: prompt, cambio, justificación, resultado de tests) y una reflexión final. Se piden ≥5 refactorizaciones significativas, hechas una a la vez.
+Reto de "Refactorización Asistida por IA": app de consola en Python (3.10+) para inventario y ventas de la tienda "La Esquina". El programa **funciona y todas las pruebas pasan**; el código tiene malas prácticas a propósito y la tarea es mejorarlo **sin cambiar su comportamiento observable**. La entrega es un PR (`refactorizacion` → `main`) con commits atómicos (uno por refactorización), la bitácora en `docs/bitacora.md` y la reflexión final en `docs/reflexion.md`. La bitácora sigue `BITACORA_TEMPLATE.md`: una fila por refactorización con prompt, cambio, justificación y resultado de tests. La evidencia (salidas de pytest y ruff) va en `docs/evidencia/`. Se piden ≥5 refactorizaciones significativas, hechas una a la vez.
 
 ## Comandos
 
-Usar el venv del repo (`.venv`; en Windows `.venv\Scripts\activate`). Dependencias: `pip install -r requirements.txt` (pytest, ruff).
+Usar el venv del repo (`.venv`). **Ejecutar todo como módulo de Python** (`python -m ...`), nunca los `.exe` del venv: en esta máquina Device Guard bloquea los ejecutables de `.venv\Scripts`, así que `pytest`, `ruff` o `pip` a secas fallan.
 
 ```bash
-pytest                                   # suite completa (testpaths = tests)
-pytest tests/test_gestor.py::nombre      # una sola prueba
-ruff check src                           # linter; el objetivo final es 0 errores
-ruff check src --fix                     # solo arregla lo trivial
-cd src && python main.py                 # app interactiva (lee/escribe datos_ejemplo.json en el cwd)
+python -m pip install -r requirements.txt            # dependencias (pytest, ruff)
+python -m pytest -v                                  # suite completa (testpaths = tests)
+python -m pytest -v tests/test_gestor.py::nombre     # una sola prueba
+python -m ruff check src                             # linter; el objetivo final es 0 errores
+cd src && python main.py                             # app interactiva (lee/escribe datos_ejemplo.json en el cwd)
 ```
 
-Ejecutar `pytest` **y** `ruff check src` después de CADA refactorización.
+Ejecutar `python -m pytest -v` **y** `python -m ruff check src` después de CADA refactorización.
 
 ## Reglas inamovibles
 
@@ -26,6 +26,38 @@ Ejecutar `pytest` **y** `ruff check src` después de CADA refactorización.
 - El comportamiento observable debe quedar idéntico: textos de tickets/reportes/mensajes, redondeos, valores de `ultimo_error`, valores de retorno (`None`/`False`/`True`).
 - `agregarProducto` y `buscarProducto` conservan su nombre (los usan los tests); `pyproject.toml` las exime de `pep8-naming`. El resto sí debe ser snake_case.
 - Ruff selecciona E, W, F, I, N, B, SIM, UP, C90 (mccabe `max-complexity = 10`, línea de 88 cols); cada regla corresponde a un smell real del proyecto.
+
+## Flujo de trabajo por refactorización
+
+- Una sola refactorización por petición; no adelantes otras aunque las veas.
+- Antes de renombrar o borrar cualquier función o variable, busca con grep si se usa en `tests/` o en otros módulos.
+- Al terminar, ejecuta `python -m pytest -v` y `python -m ruff check src` y muestra el resumen.
+- No hagas commit: el usuario revisa el diff y lo hace él.
+- Si un test falla, revierte el cambio y explica la causa en vez de forzar una solución.
+
+## Convenciones
+
+- PEP 8 y `snake_case`; nombres de dominio en español (`producto`, `venta`, `folio`).
+- Type hints en funciones nuevas o modificadas, con sintaxis 3.10+ (`str | None`, `list[dict]`).
+- Docstrings breves en español.
+- Constantes en MAYÚSCULAS en lugar de números mágicos (IVA, umbrales de descuento, stock bajo).
+
+Ejemplo de estilo esperado (`hayArchivo` en `almacen.py`):
+
+```python
+# antes
+def hayArchivo(ruta):
+    # checa si ya existe el archivo de datos
+    if os.path.exists(ruta):
+        return True
+    else:
+        return False
+
+# después
+def hay_archivo(ruta: str) -> bool:
+    """Indica si ya existe el archivo de datos."""
+    return os.path.exists(ruta)
+```
 
 ## Arquitectura
 
