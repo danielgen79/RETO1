@@ -1,0 +1,32 @@
+I001 [*] Import block is un-sorted or un-formatted
+ --> src\main.py:3:1
+  |
+1 |   """Punto de entrada del gestor de tienda (menu interactivo en consola)."""
+2 |
+3 | / import gestor
+4 | | import almacen
+5 | | import reportes
+  | |_______________^
+6 |
+7 |   ARCHIVO = "datos_ejemplo.json"
+  |
+help: Organize imports
+  |
+2 |
+3 + import almacen
+4 | import gestor
+  - import almacen
+5 | import reportes
+  |
+
+C901 `menu` is too complex (17 > 10)
+  --> src\main.py:20:5
+   |
+20 | def menu():
+   |     ^^^^
+21 |     print("Bienvenido al gestor de la tienda La Esquina")
+22 |     if almacen.hay_archivo(ARCHIVO):
+   |
+
+Found 2 errors.
+[*] 1 fixable with the `--fix` option.

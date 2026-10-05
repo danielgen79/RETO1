@@ -1,0 +1,25 @@
+# Entornos virtuales: miles de archivos de terceros sin relación con el reto
+.venv/
+venv/
+
+# Cachés y bytecode generados automáticamente por Python, pytest, ruff y mypy
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Metadatos de control de versiones (objetos internos de git, no código)
+.git/
+
+# Artefactos de empaquetado y cobertura generados
+*.egg-info/
+.coverage
+htmlcov/
+
+# Basura de sistema operativo (macOS)
+.DS_Store
+__MACOSX/
+
+# Variables de entorno: pueden contener secretos
+.env

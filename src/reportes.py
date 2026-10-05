@@ -1,26 +1,25 @@
-# -*- coding: utf-8 -*-
 """Reportes de la tienda: inventario, ventas y mas vendidos."""
-
-import os
 
 import gestor
 
+UMBRAL_STOCK_BAJO = 5
 
-def hacer_cosa(v):
+
+def hacer_cosa(v: float) -> str:
     # le da formato de dinero al numero
     return "$" + str(round(v, 2))
 
 
-def productos_stock_bajo():
+def productos_stock_bajo() -> list[dict]:
     """Regresa la lista de productos con stock por debajo del minimo."""
     temp2 = []
     for k in gestor.INVENTARIO:
-        if gestor.INVENTARIO[k]["stock"] < 5:
+        if gestor.INVENTARIO[k]["stock"] < UMBRAL_STOCK_BAJO:
             temp2.append(gestor.INVENTARIO[k])
     return temp2
 
 
-def reporte_inventario():
+def reporte_inventario() -> str:
     """Arma el reporte del inventario, lo imprime y lo regresa como texto."""
     s = "===== INVENTARIO =====\n"
     aux = 0
@@ -28,7 +27,7 @@ def reporte_inventario():
         p = gestor.INVENTARIO[k]
         linea = p["codigo"] + " | " + p["nombre"] + " | "
         linea = linea + hacer_cosa(p["precio"]) + " | stock: " + str(p["stock"])
-        if p["stock"] < 5:
+        if p["stock"] < UMBRAL_STOCK_BAJO:
             linea = linea + "  <-- STOCK BAJO"
         s = s + linea + "\n"
         aux = aux + p["precio"] * p["stock"]
@@ -37,7 +36,7 @@ def reporte_inventario():
     return s
 
 
-def total_vendido():
+def total_vendido() -> float:
     """Suma el total (con IVA) de todas las ventas registradas."""
     t = 0
     for v in gestor.VENTAS:
@@ -45,7 +44,7 @@ def total_vendido():
     return round(t, 2)
 
 
-def mas_vendidos(n=3):
+def mas_vendidos(n: int = 3) -> list[tuple[str, int]]:
     """Regresa los n productos mas vendidos como lista de (codigo, unidades)."""
     aux = {}
     for v in gestor.VENTAS:
@@ -66,7 +65,7 @@ def mas_vendidos(n=3):
     return temp[0:n]
 
 
-def resumen_ventas():
+def resumen_ventas() -> str:
     """Arma el resumen de ventas del dia, lo imprime y lo regresa."""
     s = "===== RESUMEN DE VENTAS =====\n"
     t = 0
@@ -78,15 +77,3 @@ def resumen_ventas():
     s = s + "Total del dia: " + hacer_cosa(t) + "\n"
     print(s)
     return s
-
-
-def reporteViejoCSV(ruta):
-    # version vieja del reporte que pedia contabilidad, ya no se usa
-    # desde que cambiaron de sistema, pero por si las dudas aqui sigue
-    f = open(ruta, "w", encoding="utf-8")
-    f.write("codigo,nombre,stock\n")
-    for k in gestor.INVENTARIO:
-        p = gestor.INVENTARIO[k]
-        f.write(p["codigo"] + "," + p["nombre"] + "," + str(p["stock"]) + "\n")
-    f.close()
-    return ruta

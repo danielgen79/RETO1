@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Modulo principal del gestor de inventario y ventas de "La Esquina".
 
 Aqui vive casi toda la logica del negocio. Historicamente este archivo
@@ -8,25 +7,38 @@ lo fueron parchando varias personas, asi que hay de todo un poco.
 from datetime import datetime
 
 # ---------------------------------------------------------------
+# Reglas de negocio: impuestos y descuentos
+# ---------------------------------------------------------------
+TASA_IVA = 0.16
+UMBRAL_DESCUENTO_ALTO = 1000
+DESCUENTO_ALTO = 0.10
+UMBRAL_DESCUENTO_MEDIO = 500
+DESCUENTO_MEDIO = 0.05
+PREFIJO_CLIENTE_VIP = "VIP"
+MONTO_MINIMO_VIP = 200
+DESCUENTO_EXTRA_VIP = 0.02
+
+# ---------------------------------------------------------------
 # Estado global de la aplicacion (inventario, ventas y contadores)
 # ---------------------------------------------------------------
 INVENTARIO = {}
 VENTAS = []
-contadorVentas = 0
+contador_ventas = 0
 ultimo_error = ""
-MODO_DEBUG = False
 
 
-def reiniciar_sistema():
+def reiniciar_sistema() -> None:
     """Borra todo el estado del sistema (inventario, ventas y folios)."""
-    global contadorVentas, ultimo_error
+    global contador_ventas, ultimo_error
     INVENTARIO.clear()
     VENTAS.clear()
-    contadorVentas = 0
+    contador_ventas = 0
     ultimo_error = ""
 
 
-def agregarProducto(codigo, nombre, precio, stock):
+def agregarProducto(
+    codigo: str | None, nombre: str, precio: float, stock: int
+) -> bool:
     # valida los datos y da de alta un producto en el inventario
     global ultimo_error
     if codigo is None or codigo == "":
@@ -50,7 +62,7 @@ def agregarProducto(codigo, nombre, precio, stock):
     return True
 
 
-def eliminar_producto(codigo):
+def eliminar_producto(codigo: str) -> bool:
     """Quita un producto del inventario. Regresa False si no existe."""
     global ultimo_error
     if codigo in INVENTARIO:
@@ -60,7 +72,7 @@ def eliminar_producto(codigo):
     return False
 
 
-def actualizar_stock(codigo, cantidad):
+def actualizar_stock(codigo: str, cantidad: int) -> bool:
     """Suma unidades al stock (o resta si la cantidad es negativa)."""
     global ultimo_error
     if codigo not in INVENTARIO:
@@ -74,7 +86,7 @@ def actualizar_stock(codigo, cantidad):
     return True
 
 
-def buscarProducto(texto):
+def buscarProducto(texto: str) -> list[dict]:
     # busca productos cuyo nombre contenga el texto (sin importar mayusculas)
     temp2 = []
     for k in INVENTARIO:
@@ -83,85 +95,112 @@ def buscarProducto(texto):
     return temp2
 
 
-def registrar_venta(codigo, cantidad, cliente=""):
-    """Registra una venta completa.
+def calcular_descuento_volumen(subtotal: float) -> float:
+    """Descuento por volumen de compra segun el subtotal."""
+    if subtotal >= UMBRAL_DESCUENTO_ALTO:
+        return subtotal * DESCUENTO_ALTO
+    if subtotal >= UMBRAL_DESCUENTO_MEDIO:
+        return subtotal * DESCUENTO_MEDIO
+    return 0
 
-    Esta funcion hace de todo: valida los datos, calcula descuentos e
-    impuestos, descuenta el stock, genera el folio, arma el ticket en
-    texto y guarda el registro en la lista de ventas. Si algo falla
-    regresa None y deja el motivo en ultimo_error.
-    """
-    global contadorVentas, ultimo_error
-    temp2 = None
-    if codigo is not None and codigo != "":
-        if codigo in INVENTARIO:
-            if cantidad is not None and cantidad > 0:
-                if INVENTARIO[codigo]["stock"] >= cantidad:
-                    temp2 = INVENTARIO[codigo]
-                else:
-                    ultimo_error = "stock insuficiente"
-                    return None
-            else:
-                ultimo_error = "cantidad invalida"
-                return None
-        else:
-            ultimo_error = "producto no existe"
-            return None
-    else:
+
+def calcular_impuesto(base: float) -> float:
+    """IVA que se cobra sobre la base (subtotal ya con descuento)."""
+    return base * TASA_IVA
+
+
+def calcular_total_con_iva(base: float) -> float:
+    """Total redondeado a 2 decimales: la base mas su IVA."""
+    return round(base + calcular_impuesto(base), 2)
+
+
+def validar_venta(codigo: str | None, cantidad: int | None) -> dict | None:
+    """Valida la venta; regresa el producto o None (motivo en ultimo_error)."""
+    global ultimo_error
+    if codigo is None or codigo == "":
         ultimo_error = "codigo vacio"
         return None
+    if codigo not in INVENTARIO:
+        ultimo_error = "producto no existe"
+        return None
+    if cantidad is None or cantidad <= 0:
+        ultimo_error = "cantidad invalida"
+        return None
+    if INVENTARIO[codigo]["stock"] < cantidad:
+        ultimo_error = "stock insuficiente"
+        return None
+    return INVENTARIO[codigo]
+
+
+def calcular_descuento_vip(
+    cliente: str | None, subtotal: float, descuento: float
+) -> float:
+    """Descuento extra VIP si la compra, ya con descuento, pasa del minimo."""
+    if (
+        cliente is not None
+        and cliente.startswith(PREFIJO_CLIENTE_VIP)
+        and subtotal - descuento > MONTO_MINIMO_VIP
+    ):
+        return subtotal * DESCUENTO_EXTRA_VIP
+    return 0
+
+
+def armar_ticket(venta: dict, hay_descuento: bool) -> str:
+    """Arma el ticket en texto plano a partir del registro de la venta."""
+    ticket = ""
+    ticket = ticket + "TIENDA LA ESQUINA\n"
+    ticket = ticket + "----------------------------\n"
+    ticket = ticket + "Folio: " + str(venta["folio"]) + "\n"
+    ticket = ticket + venta["nombre"] + " x" + str(venta["cantidad"]) + "\n"
+    ticket = ticket + "Subtotal: $" + str(venta["subtotal"]) + "\n"
+    if hay_descuento:
+        ticket = ticket + "Descuento: -$" + str(venta["descuento"]) + "\n"
+    ticket = ticket + "IVA: $" + str(venta["impuesto"]) + "\n"
+    ticket = ticket + "TOTAL: $" + str(venta["total"]) + "\n"
+    return ticket
+
+
+def registrar_venta(
+    codigo: str | None, cantidad: int | None, cliente: str | None = ""
+) -> dict | None:
+    """Registra una venta completa.
+
+    Valida los datos, calcula descuentos e impuestos, descuenta el stock,
+    genera el folio y guarda el registro. Si algo falla regresa None y deja
+    el motivo en ultimo_error.
+    """
+    global contador_ventas
+    producto = validar_venta(codigo, cantidad)
+    if producto is None:
+        return None
     # calculo del subtotal
-    aux = temp2["precio"] * cantidad
-    # descuentos por volumen de compra
-    desc = 0
-    if aux >= 1000:
-        desc = aux * 0.10
-    else:
-        if aux >= 500:
-            desc = aux * 0.05
-        else:
-            desc = 0
-    # los clientes cuyo codigo empieza con VIP tienen un extra,
-    # pero solo si su compra (ya con descuento) pasa de cierto monto
-    if cliente != "" and cliente is not None:
-        if len(cliente) >= 3:
-            if cliente[0:3] == "VIP":
-                if aux - desc > 200:
-                    desc = desc + aux * 0.02
-    base = aux - desc
-    impuesto = base * 0.16
-    total = round(base + impuesto, 2)
+    subtotal = producto["precio"] * cantidad
+    # descuentos por volumen de compra, mas el extra de clientes VIP
+    descuento = calcular_descuento_volumen(subtotal)
+    descuento = descuento + calcular_descuento_vip(cliente, subtotal, descuento)
+    base = subtotal - descuento
+    impuesto = calcular_impuesto(base)
+    total = calcular_total_con_iva(base)
     # descontar del inventario
-    temp2["stock"] = temp2["stock"] - cantidad
-    contadorVentas = contadorVentas + 1
+    producto["stock"] = producto["stock"] - cantidad
+    contador_ventas = contador_ventas + 1
     venta = {}
-    venta["folio"] = contadorVentas
+    venta["folio"] = contador_ventas
     venta["codigo"] = codigo
-    venta["nombre"] = temp2["nombre"]
+    venta["nombre"] = producto["nombre"]
     venta["cantidad"] = cantidad
-    venta["subtotal"] = round(aux, 2)
-    venta["descuento"] = round(desc, 2)
+    venta["subtotal"] = round(subtotal, 2)
+    venta["descuento"] = round(descuento, 2)
     venta["impuesto"] = round(impuesto, 2)
     venta["total"] = total
     venta["cliente"] = cliente
     venta["fecha"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    # armar el ticket en texto plano
-    t = ""
-    t = t + "TIENDA LA ESQUINA\n"
-    t = t + "----------------------------\n"
-    t = t + "Folio: " + str(venta["folio"]) + "\n"
-    t = t + venta["nombre"] + " x" + str(cantidad) + "\n"
-    t = t + "Subtotal: $" + str(venta["subtotal"]) + "\n"
-    if desc > 0:
-        t = t + "Descuento: -$" + str(venta["descuento"]) + "\n"
-    t = t + "IVA: $" + str(venta["impuesto"]) + "\n"
-    t = t + "TOTAL: $" + str(venta["total"]) + "\n"
-    venta["ticket"] = t
+    venta["ticket"] = armar_ticket(venta, descuento > 0)
     VENTAS.append(venta)
     return venta
 
 
-def cotizar(codigo, cantidad):
+def cotizar(codigo: str, cantidad: int | None) -> float | None:
     """Calcula cuanto costaria una compra sin registrar la venta."""
     global ultimo_error
     if codigo not in INVENTARIO:
@@ -171,28 +210,6 @@ def cotizar(codigo, cantidad):
         ultimo_error = "cantidad invalida"
         return None
     aux = INVENTARIO[codigo]["precio"] * cantidad
-    desc = 0
-    if aux >= 1000:
-        desc = aux * 0.10
-    else:
-        if aux >= 500:
-            desc = aux * 0.05
+    desc = calcular_descuento_volumen(aux)
     base = aux - desc
-    total = base + base * 0.16
-    return round(total, 2)
-
-
-def calcular_descuento_viejo(monto):
-    # NOTA: esta era la formula de descuentos que se uso hasta 2023,
-    # ya nadie la llama pero la dejamos por si acaso
-    if monto > 800:
-        return monto * 0.08
-    return 0
-
-
-# def exportar_txt(ruta):
-#     f = open(ruta, "w")
-#     for k in INVENTARIO:
-#         f.write(k + " - " + str(INVENTARIO[k]["stock"]) + "\n")
-#     f.close()
-#     return True
+    return calcular_total_con_iva(base)
