@@ -1,7 +1,7 @@
 # Bitácora de refactorización
 
-**Nombre:Daniel Vanegas Sánchez
-**Matrícula:**
+**Nombre:** Daniel Vanegas Sánchez
+**Matrícula:** No aplica
 **Fecha:** 2026-10-05
 
 Registra aquí **cada refactorización** que realices con Claude Code. Copia el
