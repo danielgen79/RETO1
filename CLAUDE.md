@@ -14,8 +14,8 @@ Usar el venv del repo (`.venv`). **Ejecutar todo como módulo de Python** (`pyth
 python -m pip install -r requirements.txt            # dependencias (pytest, ruff)
 python -m pytest -v tests tests_adicionales          # suite completa (tests originales + adicionales)
 python -m pytest -v tests/test_gestor.py::nombre     # una sola prueba
-python -m ruff check src                             # linter; el objetivo final es 0 errores
-cd src && python main.py                             # app interactiva (lee/escribe datos_ejemplo.json en el cwd)
+python -m ruff check src                             # linter; ya esta en 0 errores, mantenerlo asi
+python src/main.py                                   # app interactiva; desde la raiz (busca datos_ejemplo.json en el cwd)
 ```
 
 Ejecutar `python -m pytest -v tests tests_adicionales` **y** `python -m ruff check src` después de CADA refactorización.
@@ -26,7 +26,7 @@ Ejecutar `python -m pytest -v tests tests_adicionales` **y** `python -m ruff che
 - `tests/` no se modifica, pero `tests_adicionales/` sí se puede ampliar: contiene pruebas de caracterización de casos límite (umbrales de descuento, límite VIP, textos de `ultimo_error`) y su propio `conftest.py`. Si una de ellas falla tras un refactor, el comportamiento cambió: no ajustar el test para que pase.
 - El comportamiento observable debe quedar idéntico: textos de tickets/reportes/mensajes, redondeos, valores de `ultimo_error`, valores de retorno (`None`/`False`/`True`).
 - `agregarProducto` y `buscarProducto` conservan su nombre (los usan los tests); `pyproject.toml` las exime de `pep8-naming`. El resto sí debe ser snake_case.
-- Ruff selecciona E, W, F, I, N, B, SIM, UP, C90 (mccabe `max-complexity = 10`, línea de 88 cols); cada regla corresponde a un smell real del proyecto.
+- Ruff selecciona E, W, F, I, N, B, SIM, UP, C90 (mccabe `max-complexity = 10`, línea de 88 cols); cada regla corresponde a un smell real del proyecto. `python -m ruff check src` está en 0 errores y debe mantenerse así: no introducir errores nuevos.
 
 ## Flujo de trabajo por refactorización
 
@@ -69,8 +69,10 @@ Cuatro módulos en `src/`, importados por nombre plano (`import gestor`; no es p
   - `cotizar` reutiliza `calcular_descuento_volumen` y `calcular_total_con_iva`, pero **no aplica el descuento VIP** (comportamiento fijado por `tests_adicionales/`) y valida distinto a `registrar_venta` (por ejemplo, un código vacío da "producto no existe").
 - `almacen.py`: persistencia JSON (`guardar_datos`, `cargar_datos`, `hay_archivo`); **muta directamente** `gestor.INVENTARIO/VENTAS/contador_ventas/ultimo_error` (acopla ambos módulos). Los `.clear()` + copia mantienen las mismas referencias de dict/lista, así que cualquier refactor debe conservar la identidad de esos objetos (los demás módulos acceden a ellos como `gestor.INVENTARIO`). La clave `"contador"` del JSON es el formato del archivo de datos y no se renombra junto con la variable.
 - `reportes.py`: lee el estado de `gestor`; `reporte_inventario` y `resumen_ventas` **imprimen y devuelven** el texto. El umbral de stock bajo es la constante `UMBRAL_STOCK_BAJO`.
-- `main.py`: menú interactivo con un `if/elif` largo; mezcla E/S con llamadas a la lógica. No tiene tests: verificar cambios aquí a mano.
+- `main.py`: menú interactivo. `menu()` es un ciclo corto que despacha con el diccionario `OPCIONES` (opciones "1" a "7" → una función `opcion_*` por opción); la opción "8" (`opcion_guardar_y_salir`) se atiende aparte porque rompe el ciclo, y cualquier otra imprime "Opcion no valida.". `pedir_codigo_y_cantidad` es el helper de las opciones 2 y 3. No tiene tests: verificar cambios aquí con `snapshot_menu.py` (ver abajo). Nota: `menu()` imprime "Datos cargados" aunque `cargar_datos` falle; es un defecto del original conservado a propósito (ver `docs/bitacora.md`, sección "Hallazgos").
 
 El código muerto original (`calcular_descuento_viejo`, `reporteViejoCSV`, `exportar_txt` comentado, `MODO_DEBUG`) ya se eliminó; no lo reintroduzcas.
 
 Como el ticket de `registrar_venta` no tiene tests, `docs/evidencia/snapshot_ticket.py` sirve para verificar que no cambia: genera el ticket (y el dict de la venta) de 3 ventas de ejemplo (`python docs/evidencia/snapshot_ticket.py <archivo>`); compárese con `docs/evidencia/06_ticket_despues.txt` usando `diff`.
+
+Igual para el menú: `docs/evidencia/snapshot_menu.py` ejecuta `src/main.py` con entradas fijas en 3 escenarios (con copia de `datos_ejemplo.json`, sin archivo y con archivo corrupto) dentro de carpetas temporales, sin modificar el `datos_ejemplo.json` original (`python docs/evidencia/snapshot_menu.py <archivo>`); compárese con `docs/evidencia/09_menu_despues.txt` usando `diff`.
