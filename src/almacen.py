@@ -12,7 +12,7 @@ def guardar_datos(ruta: str) -> bool:
     d = {}
     d["inventario"] = gestor.INVENTARIO
     d["ventas"] = gestor.VENTAS
-    d["contador"] = gestor.contadorVentas
+    d["contador"] = gestor.contador_ventas
     with open(ruta, "w", encoding="utf-8") as f:
         json.dump(d, f, indent=2, ensure_ascii=False)
     return True
@@ -38,7 +38,7 @@ def cargar_datos(ruta: str) -> bool:
     gestor.VENTAS.clear()
     for v in d["ventas"]:
         gestor.VENTAS.append(v)
-    gestor.contadorVentas = d.get("contador", 0)
+    gestor.contador_ventas = d.get("contador", 0)
     return True
 
 
